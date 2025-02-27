@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ReminderScreen extends StatefulWidget {
@@ -15,7 +17,9 @@ class _ReminderScreenState extends State<ReminderScreen> {
   @override
   void initState() {
     super.initState();
-    _loadLanguage();
+    initializeDateFormatting().then((_) {
+      _loadLanguage();
+    });
   }
 
   void _loadLanguage() async {
@@ -31,6 +35,13 @@ class _ReminderScreenState extends State<ReminderScreen> {
     setState(() {
       _language = langCode;
     });
+  }
+
+  String getTodayDate() {
+    DateTime now = DateTime.now();
+    return _language == 'vi'
+        ? "Hôm nay là ${DateFormat('dd MMMM', 'vi').format(now)}"
+        : "Today is ${DateFormat('dd MMM', 'en').format(now)}";
   }
 
   void _showSettingsBottomSheet(BuildContext context) {
@@ -71,17 +82,13 @@ class _ReminderScreenState extends State<ReminderScreen> {
                 items: [
                   DropdownMenuItem(
                     value: 'vi',
-                    child: Text(
-                      "Tiếng Việt",
-                      style: TextStyle(color: Colors.black),
-                    ),
+                    child: Text("Tiếng Việt",
+                        style: TextStyle(color: Colors.black)),
                   ),
                   DropdownMenuItem(
                     value: 'en',
-                    child: Text(
-                      "English",
-                      style: TextStyle(color: Colors.black),
-                    ),
+                    child:
+                        Text("English", style: TextStyle(color: Colors.black)),
                   ),
                 ],
                 onChanged: (newLang) {
@@ -95,10 +102,9 @@ class _ReminderScreenState extends State<ReminderScreen> {
             ListTile(
               title: Text("Thông báo", style: TextStyle(color: Colors.black)),
               trailing: Switch(
-                value: true,
-                onChanged: null,
-                inactiveThumbColor: Colors.blue,
-              ),
+                  value: true,
+                  onChanged: null,
+                  inactiveThumbColor: Colors.blue),
             ),
             ListTile(
               title: Text("Chế độ tối", style: TextStyle(color: Colors.black)),
@@ -112,15 +118,24 @@ class _ReminderScreenState extends State<ReminderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    double progress = 0.36;
-
+    double progress = 0.55;
     return Scaffold(
       backgroundColor: const Color.fromARGB(255, 104, 57, 212),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text(_language == 'vi' ? "Nhắc nhở uống nước" : "Water Reminder",
-            style: TextStyle(color: Colors.white)),
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              shadows: [
+                Shadow(
+                  blurRadius: 4.0,
+                  color: Colors.black,
+                  offset: Offset(5, 5), 
+                ),
+              ],
+            )),
         centerTitle: true,
         actions: [
           IconButton(
@@ -137,8 +152,8 @@ class _ReminderScreenState extends State<ReminderScreen> {
               alignment: Alignment.centerLeft,
               child: Text(
                 _language == 'vi'
-                    ? "Xin chào! 👋\nHôm nay là 30 Tháng 1"
-                    : "Hi! 👋\nToday is 30 Jan",
+                    ? "Xin chào 👋!\n${getTodayDate()}"
+                    : "Hi there 👋!\n${getTodayDate()}",
                 style: TextStyle(
                     color: Colors.white,
                     fontSize: 22,
@@ -152,10 +167,12 @@ class _ReminderScreenState extends State<ReminderScreen> {
               children: [
                 CustomPaint(
                   size: Size(200, 200),
-                  painter: WaterPainter(progress),
+                  painter: MiddleCircle(progress),
                 ),
                 Text("${(progress * 100).toInt()}%",
-                    style: TextStyle(fontSize: 36, color: Colors.white)),
+                    style: TextStyle(
+                        fontSize: 36,
+                        color: const Color.fromARGB(255, 33, 6, 77))),
               ],
             ),
           ),
@@ -163,14 +180,34 @@ class _ReminderScreenState extends State<ReminderScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              InfoCard(title: "Done", value: "21 oz", icon: Icons.check_circle),
+              InfoCard(
+                  title: _language == 'vi' ? "Đã hoàn thành:" : "Done:",
+                  value: "21 oz",
+                  icon: Icons.check_circle),
               SizedBox(width: 20),
-              InfoCard(title: "Goal", value: "57 oz", icon: Icons.flag),
+              InfoCard(
+                  title: _language == 'vi' ? "Mục tiêu:" : "Goals:",
+                  value: "57 oz",
+                  icon: Icons.flag_circle),
             ],
           ),
           Spacer(),
           FloatingActionButton(
-            onPressed: () {},
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: Text(_language == 'vi' ? "Chào đằng ấy!" : "Hi there!"),
+                  content: Text(_language == 'vi' ? "Cố lên, bạn đã hoàn thành 55% hôm nay!" : "Fightting, you have complete 55% today!"),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text("OK"),
+                    ),
+                  ],
+                ),
+              );
+            },
             backgroundColor: Colors.blueAccent,
             child: Icon(Icons.water_drop, size: 30),
           ),
@@ -181,9 +218,9 @@ class _ReminderScreenState extends State<ReminderScreen> {
   }
 }
 
-class WaterPainter extends CustomPainter {
+class MiddleCircle extends CustomPainter {
   final double progress;
-  WaterPainter(this.progress);
+  MiddleCircle(this.progress);
 
   @override
   void paint(Canvas canvas, Size size) {
