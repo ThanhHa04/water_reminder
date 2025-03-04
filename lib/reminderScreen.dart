@@ -44,78 +44,218 @@ class _ReminderScreenState extends State<ReminderScreen> {
         : "Today is ${DateFormat('dd MMM', 'en').format(now)}";
   }
 
-  void _showSettingsBottomSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(50)),
-      ),
-      backgroundColor: Colors.white,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.5,
-        padding: EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: const Color.fromARGB(255, 62, 46, 188),
-                  borderRadius: BorderRadius.circular(10),
+double _weight = 50; // Cân nặng mặc định
+String _wakeUpTime = "07:00";
+String _bedTime = "23:00";
+
+
+// Hàm hiển thị thanh trượt chỉnh cân nặng
+void _showWeightSlider(BuildContext context) {
+  double tempWeight = _weight;
+  showModalBottomSheet(
+    context: context,
+    builder: (context) {
+      return StatefulBuilder(
+        builder: (context, setModalState) {
+          return Container(
+            padding: EdgeInsets.all(20),
+            height: 200,
+            child: Column(
+              children: [
+                Text(
+                  _language == 'vi' ? "Chỉnh sửa cân nặng" : "Adjust Weight",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-              ),
+                Slider(
+                  value: tempWeight,
+                  min: 30,
+                  max: 150,
+                  divisions: 120,
+                  label: "${tempWeight.round()} kg",
+                  onChanged: (value) {
+                    setModalState(() {
+                      tempWeight = value;
+                    });
+                  },
+                ),
+                Text("${tempWeight.round()} kg",
+                    style: TextStyle(fontSize: 18, color: Colors.blue)),
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _weight = tempWeight.roundToDouble();
+                    });
+                    Navigator.pop(context);
+                  },
+                  child: Text(_language == 'vi' ? "Lưu" : "Save"),
+                ),
+              ],
             ),
-            SizedBox(height: 20),
-            Text("Cài đặt",
-                style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold)),
-            Divider(),
-            ListTile(
-              title: Text("Ngôn ngữ", style: TextStyle(color: Colors.black)),
-              trailing: DropdownButton<String>(
-                value: _language,
-                dropdownColor: Colors.white,
-                items: [
-                  DropdownMenuItem(
-                    value: 'vi',
-                    child: Text("Tiếng Việt",
-                        style: TextStyle(color: Colors.black)),
+          );
+        },
+      );
+    },
+  );
+}
+
+void _selectTime(BuildContext context, {required bool isWakeUp}) async {
+  TimeOfDay initialTime = isWakeUp
+      ? TimeOfDay(hour: 7, minute: 0)
+      : TimeOfDay(hour: 23, minute: 0);
+  TimeOfDay? pickedTime = await showTimePicker(
+    context: context,
+    initialTime: initialTime,
+  );
+  if (pickedTime != null) {
+    String formattedTime =
+        "${pickedTime.hour.toString().padLeft(2, '0')}:${pickedTime.minute.toString().padLeft(2, '0')}";
+
+    setState(() {
+      if (isWakeUp) {
+        _wakeUpTime = formattedTime;
+      } else {
+        _bedTime = formattedTime;
+      }
+    });
+  }
+}
+
+void _showSettingsBottomSheet(BuildContext context) {
+  showGeneralDialog(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+    transitionDuration: Duration(milliseconds: 300),
+    pageBuilder: (context, animation, secondaryAnimation) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: Material(
+          color: Colors.white,
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.5,
+            height: MediaQuery.of(context).size.height,
+            padding: EdgeInsets.all(20),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Color.fromARGB(255, 62, 46, 188),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
                   ),
-                  DropdownMenuItem(
-                    value: 'en',
-                    child:
-                        Text("English", style: TextStyle(color: Colors.black)),
+                  SizedBox(height: 20),
+                  Text(_language == 'vi' ? "Cài đặt" : "Settings",
+                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  Divider(),
+                  ListTile(
+                    title: Text(_language == 'vi' ? "Ngôn ngữ" : "Language", style: TextStyle(color: Colors.black)),
+                    trailing: DropdownButton<String>(
+                      value: _language,
+                      dropdownColor: Colors.white,
+                      items: [
+                        DropdownMenuItem(
+                          value: 'vi',
+                          child: Text("Tiếng Việt",
+                              style: TextStyle(color: Colors.black)),
+                        ),
+                        DropdownMenuItem(
+                          value: 'en',
+                          child: Text("English",
+                              style: TextStyle(color: Colors.black)),
+                        ),
+                      ],
+                      onChanged: (newLang) {
+                        if (newLang != null) {
+                          _changeLanguage(newLang);
+                          Navigator.pop(context);
+                        }
+                      },
+                    ),
+                  ),
+                  ListTile(
+                    title: Text(_language == 'vi' ?"Thông báo" : "Notification", style: TextStyle(color: Colors.black)),
+                    trailing: Switch(
+                      value: true,
+                      onChanged: (value) {},
+                      activeColor: Colors.blue,
+                    ),
+                  ),
+                  ListTile(
+                    title: Text(_language == 'vi' ? "Chế độ tối" : "Dark mode", style: TextStyle(color: Colors.black)),
+                    trailing: Switch(
+                      value: false,
+                      onChanged: (value) {},
+                      activeColor: Colors.blue,
+                    ),
+                  ),
+
+                  Divider(),
+                  ListTile(
+                    title: Text(_language == 'vi' ? "Đơn vị" : "Unit", 
+                        style: TextStyle(color: Colors.black)),
+                    trailing: Text("kg, ml",
+                        style: TextStyle(color: Colors.blue, fontSize: 16)),
+                  ),
+                  ListTile(
+                    title: Text(_language == 'vi' ? "Cân nặng" : "Weight",
+                        style: TextStyle(color: Colors.black)),
+                    trailing: Text("$_weight kg",
+                        style: TextStyle(color: Colors.blue, fontSize: 16)),
+                    onTap: () => _showWeightSlider(context),
+                  ),
+                  ListTile(
+                    title: Text(_language == 'vi' ? "Mục tiêu lượng nước uống" : "Water Intake Goal",
+                        style: TextStyle(color: Colors.black)),
+                    trailing: Text("${_calculateWaterIntake()} ml",
+                        style: TextStyle(color: Colors.blue, fontSize: 16)),
+                  ),
+
+                  Divider(),
+                  ListTile(
+                    title: Text(_language == 'vi' ? "Giờ thức dậy" : "Wake-up Time",
+                        style: TextStyle(color: Colors.black)),
+                    trailing: Text(_wakeUpTime,
+                        style: TextStyle(color: Colors.blue, fontSize: 16)),
+                    onTap: () => _selectTime(context, isWakeUp: true),
+                  ),
+                  ListTile(
+                    title: Text(_language == 'vi' ? "Giờ đi ngủ" : "Bedtime",
+                        style: TextStyle(color: Colors.black)),
+                    trailing: Text(_bedTime,
+                        style: TextStyle(color: Colors.blue, fontSize: 16)),
+                    onTap: () => _selectTime(context, isWakeUp: false),
                   ),
                 ],
-                onChanged: (newLang) {
-                  if (newLang != null) {
-                    _changeLanguage(newLang);
-                    Navigator.pop(context);
-                  }
-                },
               ),
             ),
-            ListTile(
-              title: Text("Thông báo", style: TextStyle(color: Colors.black)),
-              trailing: Switch(
-                  value: true,
-                  onChanged: null,
-                  inactiveThumbColor: Colors.blue),
-            ),
-            ListTile(
-              title: Text("Chế độ tối", style: TextStyle(color: Colors.black)),
-              trailing: Switch(value: false, onChanged: null),
-            ),
-          ],
+          ),
         ),
-      ),
-    );
-  }
+      );
+    },
+    transitionBuilder: (context, animation, secondaryAnimation, child) {
+      return SlideTransition(
+        position: Tween<Offset>(
+          begin: Offset(1, 0),
+          end: Offset(0, 0),
+        ).animate(animation),
+        child: child,
+      );
+    },
+  );
+}
 
+// Công thức tính lượng nước uống
+int _calculateWaterIntake() {
+  double waterIntakeLiters = (_weight * 2.205 * 0.5) / 33.8;
+  return (waterIntakeLiters * 1000).round();
+} 
+  
   @override
   Widget build(BuildContext context) {
     double progress = 0.55;
