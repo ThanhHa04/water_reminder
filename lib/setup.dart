@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'wrapp.dart';
+import 'reminderScreen.dart';
 
 class SetupScreen extends StatefulWidget {
   @override
@@ -289,7 +289,7 @@ List<Widget> _buildSteps() {
                   _savePreferences();
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => WRApp()),
+                    MaterialPageRoute(builder: (context) => ReminderScreen()),
                   );
                 }
               },

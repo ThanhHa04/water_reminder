@@ -3,11 +3,11 @@ import 'dart:math';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'statistic.dart';  // Import the Statistic Screen
+import 'settings.dart';   // Import the Settings Screen
 
 class ReminderScreen extends StatefulWidget {
-  final int waterGoal;
-  
-  const ReminderScreen({Key? key, required this.waterGoal}) : super(key: key);
+  const ReminderScreen({super.key});
 
   @override
   _ReminderScreenState createState() => _ReminderScreenState();
@@ -16,76 +16,58 @@ class ReminderScreen extends StatefulWidget {
 class _ReminderScreenState extends State<ReminderScreen> {
   String _language = 'vi';
   int _currentWaterIntake = 0;
-  int _waterGoal = 2000;
-  bool _isDateFormatted = false;
+  late int _waterGoal;
+  double _weight = 56; // Mặc định
+  double get progress => _currentWaterIntake / _waterGoal;
+  int _selectedIndex = 0; // Dùng để xác định trang hiện tại
 
   @override
   void initState() {
     super.initState();
-    _waterGoal = widget.waterGoal; // Lấy giá trị từ widget
-    _loadWaterGoal();
-    _initializeDateFormatting();
-  }
-
-  void _initializeDateFormatting() async {
-    await initializeDateFormatting('vi', null);
-    setState(() {
-      _isDateFormatted = true;
+    initializeDateFormatting().then((_) {
+      _loadSettings();
     });
   }
 
-  void _loadWaterGoal() async {
+  void _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    int? savedGoal = prefs.getInt('water_goal');
-    if (savedGoal != null) {
-      setState(() {
-        _waterGoal = savedGoal;
-      });
-    }
+    setState(() {
+      _language = prefs.getString('language_code') ?? 'vi';
+      _weight = prefs.getDouble('user_weight') ?? 56;
+      _calculateWaterGoal();
+    });
+  }
+
+  void _calculateWaterGoal() {
+    _waterGoal = ((_weight * 2.205 * 0.5) / 33.8 * 1000).round();
   }
 
   void _addWater() {
     setState(() {
       if (_currentWaterIntake < _waterGoal) {
-        _currentWaterIntake += 250;
+        _currentWaterIntake += 250; // Mỗi lần nhấn +250ml
       }
     });
   }
 
   String getTodayDate() {
-    if (!_isDateFormatted) return "Loading...";
     DateTime now = DateTime.now();
     return _language == 'vi'
         ? "Hôm nay là ${DateFormat('dd MMMM', 'vi').format(now)}"
         : "Today is ${DateFormat('dd MMM', 'en').format(now)}";
   }
 
-  double get progress => _currentWaterIntake / _waterGoal;
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index; // Cập nhật chỉ mục trang khi nhấn vào biểu tượng
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 104, 57, 212),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text(
-          _language == 'vi' ? "Nhắc nhở uống nước" : "Water Reminder",
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            shadows: [
-              Shadow(
-                blurRadius: 4.0,
-                color: Colors.black,
-                offset: Offset(5, 5),
-              ),
-            ],
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: Column(
+    // Danh sách các trang
+    List<Widget> _pages = [
+      Column(
         children: [
           Padding(
             padding: EdgeInsets.all(20.0),
@@ -130,10 +112,9 @@ class _ReminderScreenState extends State<ReminderScreen> {
                   icon: Icons.check_circle),
               SizedBox(width: 20),
               InfoCard(
-                title: _language == 'vi' ? "Mục tiêu:" : "Goals:",
-                value: "$_waterGoal",
-                icon: Icons.flag_circle,
-              ),
+                  title: _language == 'vi' ? "Mục tiêu:" : "Goals:",
+                  value: "${_waterGoal} ml",
+                  icon: Icons.flag_circle),
             ],
           ),
           Spacer(),
@@ -142,8 +123,7 @@ class _ReminderScreenState extends State<ReminderScreen> {
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
-                  title:
-                      Text(_language == 'vi' ? "Chào đằng ấy!" : "Hi there!"),
+                  title: Text(_language == 'vi' ? "Chào đằng ấy!" : "Hi there!"),
                   content: Text(_language == 'vi'
                       ? "Cố lên, bạn đã hoàn thành ${(progress * 100).toInt()}% hôm nay!"
                       : "Fighting, you have completed ${(progress * 100).toInt()}% today!"),
@@ -162,10 +142,66 @@ class _ReminderScreenState extends State<ReminderScreen> {
           SizedBox(height: 20),
         ],
       ),
+      StatisticScreen(), // Chuyển sang màn hình Statistic
+      SettingsScreen(
+        isDarkMode: false,  // Trạng thái chế độ tối
+        onDarkModeChanged: (bool value) {
+          // Xử lý khi thay đổi chế độ tối
+        },
+        initialLanguage: 'vi',  // Ngôn ngữ mặc định
+        initialWeight: 56,  // Cân nặng mặc định
+        initialNotifications: true,  // Thông báo mặc định
+        initialWaterGoal: 1960,  // Mục tiêu nước mặc định (56 * 35)
+        initialWakeUpTime: '07:00 AM',  // Giờ thức dậy mặc định
+        initialSleepTime: '10:00 PM',  // Giờ đi ngủ mặc định
+      ),
+    ];
+
+    return Scaffold(
+      backgroundColor: const Color.fromARGB(255, 104, 57, 212),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text(
+          _language == 'vi' ? "Nhắc nhở uống nước" : "Water Reminder",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            shadows: [
+              Shadow(
+                blurRadius: 4.0,
+                color: Colors.black,
+                offset: Offset(5, 5),
+              ),
+            ],
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: _pages[_selectedIndex], // Hiển thị trang tương ứng với chỉ mục
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.water_drop),
+            label: 'Reminder',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart),
+            label: 'Statistic',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: 'Settings',
+          ),
+        ],
+      ),
     );
   }
 }
 
+// Các widget và phần còn lại không thay đổi
 class MiddleCircle extends CustomPainter {
   final double progress;
   MiddleCircle(this.progress);

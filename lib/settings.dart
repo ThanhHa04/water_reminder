@@ -59,17 +59,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _wakeUpTime = prefs.getString('wakeUpTime') ?? "07:00 AM";
       _sleepTime = prefs.getString('sleepTime') ?? "10:00 PM";
     });
-}
+  }
 
 
   String t(String vi, String en) {
     return _language == 'vi' ? vi : en;
-  }
-
-  void _toggleDarkMode(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('dark_mode', value);
-    widget.onDarkModeChanged(value);
   }
   
   void _updateSetting(String key, dynamic value) async {
@@ -118,9 +112,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           SwitchListTile(
-            title: Text(t("Chế độ tối", "Dark Mode")),
-            value: widget.isDarkMode,
-            onChanged: _toggleDarkMode,
+            title: Text("Dark Mode"),
+            value: widget.isDarkMode, // Use widget.isDarkMode
+            onChanged: (bool value) async {
+              widget.onDarkModeChanged(value); // Use widget.onDarkModeChanged
+            },
           ),
           ListTile(
             title: Text(t("Cân nặng", "Weight")),
