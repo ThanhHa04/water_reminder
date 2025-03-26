@@ -1,48 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'reminderScreen.dart';
-import 'statistic.dart';
-import 'settings.dart';
+import 'welcome.dart';
+import 'wrapp.dart';
 
 void main() {
-  runApp(const WRApp());
+  runApp(const MyApp());
 }
 
-class WRApp extends StatefulWidget {
-  const WRApp({super.key});
+class MyApp extends StatefulWidget {
+  const MyApp({super.key});
 
   @override
-  _WRAppState createState() => _WRAppState();
+  _MyAppState createState() => _MyAppState();
 }
 
-class _WRAppState extends State<WRApp> {
-  int _selectedIndex = 0;
-  bool _isDarkMode = false;
+class _MyAppState extends State<MyApp> {
+  bool _hasSeenWelcome = false;
 
   @override
   void initState() {
     super.initState();
-    _loadTheme();
+    _checkFirstLaunch();
   }
 
-  void _loadTheme() async {
+  void _checkFirstLaunch() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _isDarkMode = prefs.getBool('isDarkMode') ?? false;
+      _hasSeenWelcome = prefs.getBool('hasSeenWelcome') ?? false;
     });
   }
 
-  void _toggleTheme(bool isDark) async {
+  void _markWelcomeSeen() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isDarkMode', isDark);
+    await prefs.setBool('hasSeenWelcome', true);
     setState(() {
-      _isDarkMode = isDark;
-    });
-  }
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
+      _hasSeenWelcome = true;
     });
   }
 
@@ -50,35 +42,7 @@ class _WRAppState extends State<WRApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: _isDarkMode ? ThemeData.dark() : ThemeData.light(),
-      home: Scaffold(
-        body: _selectedIndex == 2
-            ? SettingsScreen(
-                isDarkMode: _isDarkMode,
-                onDarkModeChanged: _toggleTheme,
-              )
-            : _screens[_selectedIndex],
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.water_drop), label: "Trang chủ"),
-            BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: "Lịch sử"),
-            BottomNavigationBarItem(icon: Icon(Icons.settings), label: "Cài đặt"),
-          ],
-          selectedItemColor: Colors.blueAccent,
-          unselectedItemColor: Colors.grey,
-        ),
-      ),
+      home: _hasSeenWelcome ? const WRApp() : WelcomeScreen(onContinue: _markWelcomeSeen),
     );
   }
-
-  List<Widget> get _screens => [
-        ReminderScreen(),
-        StatisticScreen(),
-        SettingsScreen(
-          isDarkMode: _isDarkMode,
-          onDarkModeChanged: _toggleTheme,
-        ),
-      ];
 }

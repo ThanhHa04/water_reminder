@@ -1,31 +1,51 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'welcome.dart';
 
 class SettingsScreen extends StatefulWidget {
   final bool isDarkMode;
   final ValueChanged<bool> onDarkModeChanged;
+  final String initialLanguage;
+  final double initialWeight;
+  final bool initialNotifications;
+  final int initialWaterGoal;
+  final String initialWakeUpTime;
+  final String initialSleepTime;
 
   const SettingsScreen({
     Key? key,
     required this.isDarkMode,
     required this.onDarkModeChanged,
+    required this.initialLanguage,
+    required this.initialWeight,
+    required this.initialNotifications,
+    required this.initialWaterGoal,
+    required this.initialWakeUpTime,
+    required this.initialSleepTime,
   }) : super(key: key);
-
+  
   @override
   _SettingsScreenState createState() => _SettingsScreenState();
 }
 
+
 class _SettingsScreenState extends State<SettingsScreen> {
-  String _language = 'vi';
-  double _weight = 56;
-  bool _notifications = true;
-  int _waterGoal = 2000;
-  String _wakeUpTime = "07:00";
-  String _sleepTime = "22:00";
+  late String _language;
+  late double _weight;
+  late bool _notifications;
+  late int _waterGoal;
+  late String _wakeUpTime;
+  late String _sleepTime;
 
   @override
   void initState() {
     super.initState();
+    _language = widget.initialLanguage;
+    _weight = widget.initialWeight;
+    _notifications = widget.initialNotifications;
+    _waterGoal = widget.initialWaterGoal;
+    _wakeUpTime = widget.initialWakeUpTime;
+    _sleepTime = widget.initialSleepTime;
     _loadSettings();
   }
 
@@ -33,18 +53,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _language = prefs.getString('language_code') ?? 'vi';
-      _weight = prefs.getDouble('user_weight') ?? 56;
+      _weight = prefs.getInt('weight')?.toDouble() ?? 56;
       _notifications = prefs.getBool('notifications') ?? true;
-      _waterGoal = prefs.getInt('water_goal') ?? 2000;
-      _wakeUpTime = prefs.getString('wake_up_time') ?? "07:00";
-      _sleepTime = prefs.getString('sleep_time') ?? "22:00";
+      _waterGoal = (_weight * 35).round();
+      _wakeUpTime = prefs.getString('wakeUpTime') ?? "07:00 AM";
+      _sleepTime = prefs.getString('sleepTime') ?? "10:00 PM";
     });
-  }
+}
+
 
   String t(String vi, String en) {
     return _language == 'vi' ? vi : en;
   }
 
+  void _toggleDarkMode(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('dark_mode', value);
+    widget.onDarkModeChanged(value);
+  }
+  
   void _updateSetting(String key, dynamic value) async {
     final prefs = await SharedPreferences.getInstance();
     if (value is bool) {
@@ -93,9 +120,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           SwitchListTile(
             title: Text(t("Chế độ tối", "Dark Mode")),
             value: widget.isDarkMode,
-            onChanged: (value) {
-              widget.onDarkModeChanged(value);
-            },
+            onChanged: _toggleDarkMode,
           ),
           ListTile(
             title: Text(t("Cân nặng", "Weight")),
@@ -106,7 +131,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 builder: (context) {
                   double tempWeight = _weight;
                   return StatefulBuilder(
-                    builder: (context, setModalState) { // Thêm StatefulBuilder
+                    builder: (context, setModalState) {
                       return AlertDialog(
                         title: Text(t("Chỉnh sửa cân nặng", "Edit Weight")),
                         content: Column(
@@ -119,7 +144,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               divisions: 120,
                               label: "${tempWeight.round()} kg",
                               onChanged: (value) {
-                                setModalState(() { // Cập nhật giá trị slider
+                                setModalState(() {
                                   tempWeight = value;
                                 });
                               },
@@ -143,17 +168,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 },
               );
               if (newWeight != null) {
+                int newWaterGoal = (newWeight * 35).round();
+                setState(() {
+                  _weight = newWeight;
+                  _waterGoal = newWaterGoal; 
+                });
                 _updateSetting('user_weight', newWeight);
-                setState(() => _weight = newWeight);
+                _updateSetting('water_goal', _waterGoal);
               }
             },
           ),
+
           ListTile(
             title: Text(t("Mục tiêu nước uống", "Water Intake Goal")),
             trailing: Text("$_waterGoal ml", style: TextStyle(color: Colors.blue)),
             onTap: () {
-              _updateSetting('water_goal', _waterGoal + 100);
-              setState(() => _waterGoal += 100);
+              int newWaterGoal = (_weight * 35).round();
+              setState(() => _waterGoal = newWaterGoal);
+              _updateSetting('water_goal', _waterGoal);
             },
           ),
           ListTile(
@@ -190,6 +222,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _updateSetting('sleep_time', newTime);
                 setState(() => _sleepTime = newTime);
               }
+            },
+          ),
+          ListTile(
+            title: Text(t("Đăng xuất", "Logout")),
+            leading: Icon(Icons.logout, color: Colors.red),
+            textColor: Colors.red,
+            onTap: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('hasSeenWelcome', false); // Xóa trạng thái đã xem
+
+              if (!mounted) return;
+
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => WelcomeScreen(onContinue: () {})),
+              );
             },
           ),
         ],

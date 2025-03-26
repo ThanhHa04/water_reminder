@@ -5,7 +5,9 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ReminderScreen extends StatefulWidget {
-  const ReminderScreen({super.key});
+  final int waterGoal;
+  
+  const ReminderScreen({Key? key, required this.waterGoal}) : super(key: key);
 
   @override
   _ReminderScreenState createState() => _ReminderScreenState();
@@ -14,146 +16,155 @@ class ReminderScreen extends StatefulWidget {
 class _ReminderScreenState extends State<ReminderScreen> {
   String _language = 'vi';
   int _currentWaterIntake = 0;
-  late int _totalWaterGoal;
-  double _weight = 56; // Mặc định
-  double get progress => _currentWaterIntake / _totalWaterGoal;
+  int _waterGoal = 2000;
+  bool _isDateFormatted = false;
 
   @override
   void initState() {
     super.initState();
-    initializeDateFormatting().then((_) {
-      _loadSettings();
-    });
+    _waterGoal = widget.waterGoal; // Lấy giá trị từ widget
+    _loadWaterGoal();
+    _initializeDateFormatting();
   }
 
-  void _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
+  void _initializeDateFormatting() async {
+    await initializeDateFormatting('vi', null);
     setState(() {
-      _language = prefs.getString('language_code') ?? 'vi';
-      _weight = prefs.getDouble('user_weight') ?? 56;
-      _calculateWaterGoal();
+      _isDateFormatted = true;
     });
   }
 
-  void _calculateWaterGoal() {
-    _totalWaterGoal = ((_weight * 2.205 * 0.5) / 33.8 * 1000).round();
+  void _loadWaterGoal() async {
+    final prefs = await SharedPreferences.getInstance();
+    int? savedGoal = prefs.getInt('water_goal');
+    if (savedGoal != null) {
+      setState(() {
+        _waterGoal = savedGoal;
+      });
+    }
   }
 
   void _addWater() {
     setState(() {
-      if (_currentWaterIntake < _totalWaterGoal) {
-        _currentWaterIntake += 250; // Mỗi lần nhấn +250ml
+      if (_currentWaterIntake < _waterGoal) {
+        _currentWaterIntake += 250;
       }
     });
   }
 
   String getTodayDate() {
+    if (!_isDateFormatted) return "Loading...";
     DateTime now = DateTime.now();
     return _language == 'vi'
         ? "Hôm nay là ${DateFormat('dd MMMM', 'vi').format(now)}"
         : "Today is ${DateFormat('dd MMM', 'en').format(now)}";
   }
-  
+
+  double get progress => _currentWaterIntake / _waterGoal;
+
   @override
   Widget build(BuildContext context) {
-      return Scaffold(
-        backgroundColor: const Color.fromARGB(255, 104, 57, 212),
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          title: Text(_language == 'vi' ? "Nhắc nhở uống nước" : "Water Reminder",
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                shadows: [
-                  Shadow(
-                    blurRadius: 4.0,
-                    color: Colors.black,
-                    offset: Offset(5, 5),
-                  ),
-                ],
-              )),
-          centerTitle: true,
+    return Scaffold(
+      backgroundColor: const Color.fromARGB(255, 104, 57, 212),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text(
+          _language == 'vi' ? "Nhắc nhở uống nước" : "Water Reminder",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            shadows: [
+              Shadow(
+                blurRadius: 4.0,
+                color: Colors.black,
+                offset: Offset(5, 5),
+              ),
+            ],
+          ),
         ),
-        body: Column(
-          children: [
-            Padding(
-              padding: EdgeInsets.all(20.0),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  _language == 'vi'
-                      ? "Xin chào 👋!\n${getTodayDate()}"
-                      : "Hi there 👋!\n${getTodayDate()}",
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold),
-                ),
+        centerTitle: true,
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.all(20.0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                _language == 'vi'
+                    ? "Xin chào 👋!\n${getTodayDate()}"
+                    : "Hi there 👋!\n${getTodayDate()}",
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold),
               ),
             ),
-            Center(
-              child: GestureDetector(
-                onTap: _addWater,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    CustomPaint(
-                      size: Size(200, 200),
-                      painter: MiddleCircle(progress),
+          ),
+          Center(
+            child: GestureDetector(
+              onTap: _addWater,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  CustomPaint(
+                    size: Size(200, 200),
+                    painter: MiddleCircle(progress),
+                  ),
+                  Text("${(progress * 100).toInt()}%",
+                      style: TextStyle(
+                          fontSize: 36,
+                          color: const Color.fromARGB(255, 33, 6, 77))),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              InfoCard(
+                  title: _language == 'vi' ? "Đã hoàn thành:" : "Done:",
+                  value: "${_currentWaterIntake} ml",
+                  icon: Icons.check_circle),
+              SizedBox(width: 20),
+              InfoCard(
+                title: _language == 'vi' ? "Mục tiêu:" : "Goals:",
+                value: "$_waterGoal",
+                icon: Icons.flag_circle,
+              ),
+            ],
+          ),
+          Spacer(),
+          FloatingActionButton(
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title:
+                      Text(_language == 'vi' ? "Chào đằng ấy!" : "Hi there!"),
+                  content: Text(_language == 'vi'
+                      ? "Cố lên, bạn đã hoàn thành ${(progress * 100).toInt()}% hôm nay!"
+                      : "Fighting, you have completed ${(progress * 100).toInt()}% today!"),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text("OK"),
                     ),
-                    Text("${(progress * 100).toInt()}%",
-                        style: TextStyle(
-                            fontSize: 36,
-                            color: const Color.fromARGB(255, 33, 6, 77))),
                   ],
                 ),
-              ),
-            ),
-            SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                InfoCard(
-                    title: _language == 'vi' ? "Đã hoàn thành:" : "Done:",
-                    value: "${_currentWaterIntake} ml",
-                    icon: Icons.check_circle),
-                SizedBox(width: 20),
-                InfoCard(
-                    title: _language == 'vi' ? "Mục tiêu:" : "Goals:",
-                    value: "${_totalWaterGoal} ml",
-                    icon: Icons.flag_circle),
-              ],
-            ),
-            Spacer(),
-            FloatingActionButton(
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: Text(_language == 'vi' ? "Chào đằng ấy!" : "Hi there!"),
-                    content: Text(_language == 'vi'
-                        ? "Cố lên, bạn đã hoàn thành ${(progress * 100).toInt()}% hôm nay!"
-                        : "Fighting, you have completed ${(progress * 100).toInt()}% today!"),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: Text("OK"),
-                      ),
-                    ],
-                  ),
-                );
-              },
-              backgroundColor: Colors.blueAccent,
-              child: Icon(Icons.water_drop, size: 30),
-            ),
-            SizedBox(height: 20),
-          ],
-        ),
-      );
-    }
+              );
+            },
+            backgroundColor: Colors.blueAccent,
+            child: Icon(Icons.water_drop, size: 30),
+          ),
+          SizedBox(height: 20),
+        ],
+      ),
+    );
   }
-
+}
 
 class MiddleCircle extends CustomPainter {
   final double progress;
